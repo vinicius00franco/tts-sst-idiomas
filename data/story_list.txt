@@ -1,0 +1,4 @@
+file 'story_pt_male_pt_BR-faber-medium.flac'
+file 'story_en_female_en_US-lessac-medium.flac'
+file 'story_pt_male_pt_BR-faber-medium.flac'
+file 'story_en_female_en_US-lessac-medium.flac'
