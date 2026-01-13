@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import soundfile as sf
 import tempfile
+from scipy.signal import resample_poly
 from typing import Optional, List, Tuple
 from piper.voice import PiperVoice
 from voice_catalog import VOICE_CATALOG
@@ -86,6 +87,23 @@ def synthesize_to_flac(
     # Salvar FLAC (mono int16)
     sf.write(output_flac, audio_i16, sr, format="FLAC", subtype="PCM_16")
     return output_flac, sr
+
+
+def _resample_int16(audio_i16: np.ndarray, sr_from: int, sr_to: int) -> np.ndarray:
+    """Resample int16 mono audio from sr_from to sr_to using polyphase filtering."""
+    if sr_from == sr_to:
+        return audio_i16
+    # Convert to float32 for processing
+    x = audio_i16.astype(np.float32)
+    # Compute up/down factors via greatest common divisor
+    import math
+    g = math.gcd(sr_from, sr_to)
+    up = sr_to // g
+    down = sr_from // g
+    y = resample_poly(x, up, down)
+    # Back to int16 with clipping
+    y = np.clip(y, -32768, 32767).astype(np.int16)
+    return y
 
 
 # =====================
@@ -263,7 +281,7 @@ def generate_language_audios(texts: dict, out_dir: str = "."):
                 )
 
 
-def generate_interview_english(model_type: str = "fast", specialist: Optional[str] = None):
+def generate_interview_english(model_type: str = "fast", specialist: Optional[str] = None, selected_topic: Optional[str] = None):
     """Gera uma entrevista em inglês usando duas vozes, concatena em memória e salva apenas o arquivo final."""
     # Definir as vozes para a entrevista
     sarah_model = "models/en_US-lessac-medium.onnx"
@@ -302,7 +320,7 @@ def generate_interview_english(model_type: str = "fast", specialist: Optional[st
     if specialist:
         builder.set_specialist(specialist)
     generator = builder.build()
-    structured_texts = generator.generate_english_interview_texts()  # [(speaker, text), ...]
+    structured_texts = generator.generate_english_interview_texts(selected_topic)  # [(speaker, text), ...]
 
     # Construir conversation respeitando o speaker (ordem lógica)
     conversation = []
@@ -315,25 +333,36 @@ def generate_interview_english(model_type: str = "fast", specialist: Optional[st
     # Coletar todos os áudios em uma lista
     all_audio = []
     sample_rate = None
+    male_count = 0
+    female_count = 0
+    sr_mismatch = False
 
     for model_path, config_path, text in conversation:
         voice = PiperVoice.load(model_path, config_path)
         chunks = list(voice.synthesize(text))
         if chunks:
             chunk = chunks[0]
+            current_sr = int(chunk.sample_rate)
             if sample_rate is None:
-                sample_rate = int(chunk.sample_rate)
+                sample_rate = current_sr
             audio_i16 = chunk.audio_int16_array
             if audio_i16 is not None:
+                if current_sr != sample_rate:
+                    sr_mismatch = True
+                    audio_i16 = _resample_int16(audio_i16, current_sr, sample_rate)
                 all_audio.append(audio_i16)
+                if model_path == leo_model:
+                    male_count += 1
+                else:
+                    female_count += 1
 
     if not all_audio:
         print("Nenhum áudio gerado para a entrevista em inglês.")
         return
 
-    # Adicionar silêncio de 2 segundos entre os áudios e no final
+    # Adicionar silêncio entre os áudios e no final
     all_audio_with_silence = []
-    silence = np.zeros(int(2 * sample_rate), dtype=np.int16)
+    silence = np.zeros(int(0.5 * sample_rate), dtype=np.int16)
     for audio in all_audio:
         all_audio_with_silence.append(audio)
         all_audio_with_silence.append(silence)
@@ -356,14 +385,15 @@ def generate_interview_english(model_type: str = "fast", specialist: Optional[st
         final_output, concatenated_audio, sample_rate, format="FLAC", subtype="PCM_16"
     )
     print(f"Entrevista em inglês salva em {final_output}")
+    print(f"Segmentos: Sarah={female_count}, Leo={male_count}, SR mismatch={'sim' if sr_mismatch else 'não'}")
 
     # Clean up temp files
     os.unlink(sarah_temp_path)
     os.unlink(leo_temp_path)
 
 
-def generate_interview_spanish():
-    """Gera uma entrevista em espanhol usando duas vozes, concatena em memória e salva apenas o arquivo final."""
+def generate_interview_spanish(model_type: str = "fast", specialist: Optional[str] = None, selected_topic: Optional[str] = None):
+    """Gera uma entrevista em espanhol (via LLM) usando duas vozes, concatena em memória e salva apenas o arquivo final."""
     # Definir as vozes para a entrevista
     sarah_model = "models/es_AR-daniela-high.onnx"
     sarah_config = sarah_model + ".parquet"
@@ -395,70 +425,46 @@ def generate_interview_spanish():
     leo_temp_path = leo_temp.name
     leo_temp.close()
 
-    # Textos da entrevista
-    conversation = [
-        (
-            sarah_model,
-            sarah_temp_path,
-            "¡Hola Leo, gracias por unirte hoy! Para empezar, ¿podrías contarme un poco sobre ti y qué despertó tu interés en el desarrollo backend?",
-        ),
-        (
-            leo_model,
-            leo_temp_path,
-            "¡Hola Sarah, es un placer! Bueno, siempre me ha fascinado cómo funcionan las cosas 'bajo el capó'. Aunque disfruto viendo una buena UI, prefiero la lógica, la gestión de bases de datos y las estructuras de API. Recientemente terminé mi carrera en Ciencias de la Computación, y durante mi pasantía, ayudé a construir un microservicio para una plataforma de comercio electrónico local usando Java.",
-        ),
-        (
-            sarah_model,
-            sarah_temp_path,
-            "Eso suena genial. Dado que este rol se centra en nuestra infraestructura de API, ¿qué tan cómodo estás con las APIs RESTful y la gestión de bases de datos?",
-        ),
-        (
-            leo_model,
-            leo_temp_path,
-            "Estoy bastante cómodo con los principios REST—usando los métodos HTTP correctos como GET, POST, PUT y DELETE. En mi último proyecto, usé PostgreSQL para la base de datos. También tengo experiencia con Spring Data JPA para manejar la capa de persistencia, lo que me ayudó a entender cómo mapear objetos a tablas relacionales de manera eficiente.",
-        ),
-        (
-            sarah_model,
-            sarah_temp_path,
-            "El trabajo backend a menudo involucra depurar problemas complejos. ¿Puedes describir una vez que enfrentaste un bug difícil y cómo lo resolviste?",
-        ),
-        (
-            leo_model,
-            leo_temp_path,
-            "¡Claro! Una vez, nuestra aplicación se estaba bloqueando debido a una 'LazyInitializationException'. Al principio no sabía qué era, pero usé el depurador para rastrear la capa de servicio. Me di cuenta de que estaba tratando de acceder a una colección de base de datos fuera de una transacción activa. Investigué la documentación, lo discutí con mi mentor, y lo resolvimos usando un DTO (Objeto de Transferencia de Datos) para asegurar que solo los datos necesarios se enviaran al frontend.",
-        ),
-        (
-            sarah_model,
-            sarah_temp_path,
-            "¡Buen acierto! Esos pueden ser complicados. Finalmente, ¿tienes alguna experiencia con Git o Docker?",
-        ),
-        (
-            leo_model,
-            leo_temp_path,
-            "Sí, uso Git diariamente para control de versiones—ramificación, confirmación y creación de Pull Requests. En cuanto a Docker, sé cómo crear un Dockerfile básico para contenerizar una aplicación, lo que hace mucho más fácil mantener el entorno de desarrollo consistente.",
-        ),
-        (sarah_model, sarah_temp_path, "Excelente. ¿Tienes alguna pregunta para mí?"),
-        (
-            leo_model,
-            leo_temp_path,
-            "¡Sí! Me encantaría saber más sobre el proceso de revisión de código del equipo y cómo se ve el camino de crecimiento para un desarrollador junior aquí.",
-        ),
-    ]
+    # Gerar textos via LLM (estruturado)
+    builder = InterviewGeneratorBuilder()
+    builder.set_model_type(model_type)
+    if specialist:
+        builder.set_specialist(specialist)
+    generator = builder.build()
+    structured_texts = generator.generate_spanish_interview_texts(selected_topic)
+
+    conversation = []
+    for speaker, text in structured_texts:
+        if speaker == 'Sarah':
+            conversation.append((sarah_model, sarah_temp_path, text))
+        else:
+            conversation.append((leo_model, leo_temp_path, text))
 
     # Coletar todos os áudios em uma lista
     all_audio = []
     sample_rate = None
+    male_count = 0
+    female_count = 0
+    sr_mismatch = False
 
     for model_path, config_path, text in conversation:
         voice = PiperVoice.load(model_path, config_path)
         chunks = list(voice.synthesize(text))
         if chunks:
             chunk = chunks[0]
+            current_sr = int(chunk.sample_rate)
             if sample_rate is None:
-                sample_rate = int(chunk.sample_rate)
+                sample_rate = current_sr
             audio_i16 = chunk.audio_int16_array
             if audio_i16 is not None:
+                if current_sr != sample_rate:
+                    sr_mismatch = True
+                    audio_i16 = _resample_int16(audio_i16, current_sr, sample_rate)
                 all_audio.append(audio_i16)
+                if model_path == leo_model:
+                    male_count += 1
+                else:
+                    female_count += 1
 
     if not all_audio:
         print("Nenhum áudio gerado para a entrevista em espanhol.")
@@ -489,6 +495,7 @@ def generate_interview_spanish():
         final_output, concatenated_audio, sample_rate, format="FLAC", subtype="PCM_16"
     )
     print(f"Entrevista em espanhol salva em {final_output}")
+    print(f"Segmentos: Sarah={female_count}, Leo={male_count}, SR mismatch={'sim' if sr_mismatch else 'não'}")
 
     # Clean up temp files
     os.unlink(sarah_temp_path)

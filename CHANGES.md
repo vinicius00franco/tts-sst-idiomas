@@ -17,3 +17,10 @@
 - Correções para evitar erros de shutdown do Qdrant (graceful close via atexit) e uso de UUIDs para IDs únicos.
 - Ajuste no parsing para remover artefatos indesejados como "Corrected dialogue:" antes de salvar no Qdrant.
 - Correção de erro na API FastAPI: import de `Optional` e ajuste de campos Pydantic para evitar passagem de valores inválidos aos argumentos de linha de comando.
+- Extensão de geração: seleção de línguas (`en`, `es`) via CLI/rota; sugestão de tópicos baseada em assunto com retorno de opções ao usuário; uso do tópico selecionado na geração da conversa.
+- Ajuste do `scripts/run_tts.py` para aceitar `--langs`, `--topic-subject` e `--selected-topic`, e imprimir opções quando apenas o assunto for fornecido.
+- Substituição da entrevista em espanhol fixa por geração via LLM com estrutura `(speaker, text)` e mapeamento de vozes.
+ - Sugestão de tópicos agora retorna opções em Português (PT-BR), com parâmetro `target_lang` indicando se a conversa será gerada em inglês (`en`) ou espanhol (`es`). Atualizados `scripts/run_tts.py` e `services/tts_service.py` para usar `target_lang`.
+- Ajustado especialista "daily" para gerar diálogos mais informais, usando linguagem cotidiana, gírias e expressões comuns, focando em conversas naturais sobre o assunto escolhido. Aplicado a ambos os idiomas (inglês e espanhol).
+ - Corrigido possível problema ao juntar áudios de vozes diferentes: adicionada verificação e reamostragem (resample) automática quando `sample_rate` difere entre Sarah e Leo, garantindo concatenação correta. Inclui contadores de segmentos por voz e log de possíveis mismatches.
+- Corrigido problema de diálogos muito curtos: aumentado `max_tokens` de 1000 para 2500 na geração e para 2000 na correção. Adicionada instrução explícita para gerar pelo menos 12-16 trocas de diálogo (24-32 linhas) em inglês e espanhol. Adicionada proteção na correção para preservar comprimento original.
