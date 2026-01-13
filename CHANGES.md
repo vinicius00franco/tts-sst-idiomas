@@ -16,3 +16,4 @@
 - Lazy-initialization de Qdrant e modelo de embeddings para evitar downloads desnecessários quando especialista não é usado.
 - Correções para evitar erros de shutdown do Qdrant (graceful close via atexit) e uso de UUIDs para IDs únicos.
 - Ajuste no parsing para remover artefatos indesejados como "Corrected dialogue:" antes de salvar no Qdrant.
+- Correção de erro na API FastAPI: import de `Optional` e ajuste de campos Pydantic para evitar passagem de valores inválidos aos argumentos de linha de comando.
