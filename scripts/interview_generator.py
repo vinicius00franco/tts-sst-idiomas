@@ -62,7 +62,7 @@ class InterviewGenerator:
         # Registrar fechamento gracioso para evitar erro no shutdown
         atexit.register(self._close_qdrant)
 
-    def generate_english_interview_texts(self) -> list[str]:
+    def generate_english_interview_texts(self) -> list[tuple[str, str]]:
         # Primeiro, gerar diálogo base
         messages = [
             {
@@ -70,7 +70,8 @@ class InterviewGenerator:
                 "content": (
                     "You are a technical recruiter. Generate a dialogue between Sarah (Interviewer) and Leo (Backend Candidate). "
                     "Topics: REST APIs, SQL, Docker, and Debugging. "
-                    "Format: Return ONLY the dialogue lines, one per line, like \"Sarah: [text]\" and \"Leo: [text]\"."
+                    "Format: Return ONLY the dialogue lines, one per line, prefixed with the speaker name: \"Sarah: [text]\" or \"Leo: [text]\". "
+                    "Start with Sarah, then alternate speakers logically."
                 )
             },
             {"role": "user", "content": "Generate the interview now."}
@@ -89,18 +90,23 @@ class InterviewGenerator:
             self._save_to_qdrant("generated", raw_text)
         
         # Se especialista em gramática, corrigir sequencialmente
-        if self.specialist == "grammar":
+        if self.specialist in ("grammar", "daily"):
             correction_messages = [
                 {
                     "role": "system",
-                    "content": "You are an expert in English grammar. Correct any grammatical errors in the following dialogue while keeping the meaning and format intact."
+                    "content": (
+                        "You are an expert reviewer. Ensure the dialogue has a clear logical order: greeting, background, REST APIs, scalability/design, SQL optimization, Docker usage, debugging example, final wrap-up. "
+                        "Ensure speakers alternate starting with Sarah, and every line is prefixed with 'Sarah:' or 'Leo:'. "
+                        "If grammar specialist: correct grammar to standard formal English. If daily specialist: keep language natural and conversational. "
+                        "Keep the original meaning; do not add extra topics; keep the number of lines similar."
+                    )
                 },
                 {"role": "user", "content": f"Correct this dialogue:\n{raw_text}"}
             ]
             correction_output = self.llm.create_chat_completion(
                 messages=correction_messages,
                 max_tokens=1000,
-                temperature=0.3  # Menos criatividade para correção
+                temperature=0.3  # Menos criatividade para correção/validação
             )
             corrected_text = correction_output["choices"][0]["message"]["content"]
             # Limpar artefatos indesejados
@@ -110,17 +116,31 @@ class InterviewGenerator:
             raw_text = corrected_text
         
         print(f"Raw text (tokens aproximados): {len(raw_text.split())}")
-        texts = self._parse_dialogue(raw_text)
-        print(f"Parsed texts (linhas): {len(texts)}, tokens aproximados: {len(' '.join(texts).split())}")
-        print(f"Tokens removidos: {len(raw_text.split()) - len(' '.join(texts).split())}")
-        return texts
+        structured = self._parse_dialogue_structured(raw_text)
+        joined = ' '.join([t for _, t in structured])
+        print(f"Parsed texts (linhas): {len(structured)}, tokens aproximados: {len(joined.split())}")
+        print(f"Tokens removidos: {len(raw_text.split()) - len(joined.split())}")
+        return structured
 
-    def _parse_dialogue(self, text: str) -> list[str]:
-        """Limpa as tags de nome e retorna apenas uma lista de strings com as falas."""
-        lines = text.strip().split('\n')
-        # Remove prefixos como "Sarah: " ou "Leo: " para ficar igual ao seu cenário original
-        cleaned_lines = [re.sub(r'^(Sarah|Leo):\s*', '', line).strip() for line in lines if line.strip()]
-        return cleaned_lines
+    def _parse_dialogue_structured(self, text: str) -> list[tuple[str, str]]:
+        """Retorna lista de tuplas (speaker, text), garantindo alternância lógica se ausente."""
+        lines = [ln for ln in text.strip().split('\n') if ln.strip()]
+        result: list[tuple[str, str]] = []
+        for ln in lines:
+            m = re.match(r'^(Sarah|Leo):\s*(.*)$', ln.strip())
+            if m:
+                speaker, content = m.group(1), m.group(2).strip()
+                result.append((speaker, content))
+            else:
+                # Sem prefixo, aplicar alternância: começa com Sarah
+                speaker = 'Sarah' if len(result) % 2 == 0 else 'Leo'
+                result.append((speaker, ln.strip()))
+        # Garantir alternância simples
+        fixed: list[tuple[str, str]] = []
+        for i, (spk, content) in enumerate(result):
+            expected = 'Sarah' if i % 2 == 0 else 'Leo'
+            fixed.append((expected, content))
+        return fixed
 
     def _ensure_qdrant(self):
         """Inicializa Qdrant e o modelo de embeddings apenas quando necessário."""

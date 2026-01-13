@@ -302,12 +302,12 @@ def generate_interview_english(model_type: str = "fast", specialist: Optional[st
     if specialist:
         builder.set_specialist(specialist)
     generator = builder.build()
-    texts = generator.generate_english_interview_texts()
+    structured_texts = generator.generate_english_interview_texts()  # [(speaker, text), ...]
 
-    # Construir conversation alternando Sarah e Leo
+    # Construir conversation respeitando o speaker (ordem lógica)
     conversation = []
-    for i, text in enumerate(texts):
-        if i % 2 == 0:
+    for speaker, text in structured_texts:
+        if speaker == 'Sarah':
             conversation.append((sarah_model, sarah_temp_path, text))
         else:
             conversation.append((leo_model, leo_temp_path, text))
