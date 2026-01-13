@@ -1,0 +1,161 @@
+### API Tests for TTS-SST
+### This file contains HTTP requests to test the TTS-SST API endpoints.
+### Use with VS Code REST Client extension or similar tools.
+### Base URL: http://localhost:8000/api/v1
+
+### ============================================
+### 1. SUGGEST-TOPICS ENDPOINT
+### ============================================
+### Purpose: Suggest topics in Portuguese based on a subject, for conversation generation.
+### Flow: User provides a subject (e.g., "IA generativa"), API returns 5 topic options in PT-BR.
+### Expected: 200 OK with {"status": "success", "topics": ["topic1", "topic2", ...]}
+### Errors: 400 if subject missing, 500 if LLM fails.
+
+### Valid Request: Suggest topics for "IA generativa"
+POST http://localhost:8000/api/v1/suggest-topics
+Content-Type: application/json
+
+{
+  "model": "fast",
+  "specialist": "daily",
+  "lang": "en",
+  "subject": "IA generativa"
+}
+
+### Error: Missing subject
+POST http://localhost:8000/api/v1/suggest-topics
+Content-Type: application/json
+
+{
+  "model": "fast",
+  "specialist": "daily",
+  "lang": "en"
+}
+
+### Error: Invalid model
+POST http://localhost:8000/api/v1/suggest-topics
+Content-Type: application/json
+
+{
+  "model": "invalid",
+  "specialist": "daily",
+  "lang": "en",
+  "subject": "IA generativa"
+}
+
+### ============================================
+### 2. RUN-TTS ENDPOINT
+### ============================================
+### Purpose: Generate TTS audio for interviews in selected languages.
+### Flow: After suggesting topics, user selects one and runs generation.
+### Expected: 200 OK with {"status": "success", "output": "logs..."} and audio files saved.
+### Errors: 400 for invalid params, 500 for model/voice issues.
+
+### Valid Request: Generate English daily interview
+POST http://localhost:8000/api/v1/run-tts
+Content-Type: application/json
+
+{
+  "model": "fast",
+  "specialist": "daily",
+  "langs": ["en"],
+  "selected_topic": "Desenvolvimento da IA generativa"
+}
+
+### Valid Request: Generate bilingual (EN+ES) with grammar specialist
+POST http://localhost:8000/api/v1/run-tts
+Content-Type: application/json
+
+{
+  "model": "reasoning",
+  "specialist": "grammar",
+  "langs": ["en", "es"],
+  "selected_topic": "Aplicações da IA generativa"
+}
+
+### Error: Missing selected_topic (suggest topics first)
+POST http://localhost:8000/api/v1/run-tts
+Content-Type: application/json
+
+{
+  "model": "fast",
+  "specialist": "daily",
+  "langs": ["en"]
+}
+
+### Error: Invalid language
+POST http://localhost:8000/api/v1/run-tts
+Content-Type: application/json
+
+{
+  "model": "fast",
+  "specialist": "daily",
+  "langs": ["invalid"],
+  "selected_topic": "Test"
+}
+
+### Error: Invalid specialist
+POST http://localhost:8000/api/v1/run-tts
+Content-Type: application/json
+
+{
+  "model": "fast",
+  "specialist": "invalid",
+  "langs": ["en"],
+  "selected_topic": "Test"
+}
+
+### ============================================
+### 3. QUERY-QDRANT ENDPOINT
+### ============================================
+### Purpose: Query Qdrant for generated/corrected dialogues.
+### Flow: After generation, query to compare versions.
+### Expected: 200 OK with {"status": "success", "data": "diff output"}
+### Errors: 400 if query_text missing, 500 if Qdrant issues.
+
+### Valid Request: Query for "IA generativa"
+POST http://localhost:8000/api/v1/query-qdrant
+Content-Type: application/json
+
+{
+  "query_text": "IA generativa"
+}
+
+### Error: Missing query_text
+POST http://localhost:8000/api/v1/query-qdrant
+Content-Type: application/json
+
+{}
+
+### ============================================
+### FULL FLOW EXAMPLE
+### ============================================
+### 1. Suggest topics
+POST http://localhost:8000/api/v1/suggest-topics
+Content-Type: application/json
+
+{
+  "model": "fast",
+  "specialist": "daily",
+  "lang": "en",
+  "subject": "tecnologia no dia a dia"
+}
+
+### 2. Run TTS with selected topic (from step 1)
+POST http://localhost:8000/api/v1/run-tts
+Content-Type: application/json
+
+{
+  "model": "fast",
+  "specialist": "daily",
+  "langs": ["en"],
+  "selected_topic": "Como a tecnologia influencia sua vida diária?"
+}
+
+### 3. Query Qdrant to see generated vs corrected
+POST http://localhost:8000/api/v1/query-qdrant
+Content-Type: application/json
+
+{
+  "query_text": "tecnologia"
+}

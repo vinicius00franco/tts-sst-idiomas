@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TTS-SST API Tester</title>
+  <link rel="preconnect" href="http://localhost:8000" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>TTS-SST API Tester</h1>
+    <p>Testar rotas: suggest-topics, run-tts, query-qdrant</p>
+  </header>
+
+  <main>
+    <section id="suggest-section" class="card">
+      <h2>Sugerir Tópicos</h2>
+      <form id="suggest-form">
+        <div class="grid">
+          <label>
+            Assunto
+            <input type="text" id="subject" placeholder="IA generativa" required />
+          </label>
+          <label>
+            Modelo
+            <select id="model">
+              <option value="fast">fast</option>
+              <option value="reasoning">reasoning</option>
+            </select>
+          </label>
+          <label>
+            Especialista
+            <select id="specialist">
+              <option value="daily">daily (informal)</option>
+              <option value="grammar">grammar (formal)</option>
+            </select>
+          </label>
+          <label>
+            Língua da conversa
+            <select id="lang">
+              <option value="en">en (inglês)</option>
+              <option value="es">es (espanhol)</option>
+            </select>
+          </label>
+        </div>
+        <button type="submit">Sugerir</button>
+        <span id="suggest-status" class="status"></span>
+      </form>
+      <ul id="topics" class="list"></ul>
+    </section>
+
+    <section id="run-section" class="card">
+      <h2>Gerar TTS</h2>
+      <form id="run-form">
+        <div class="grid">
+          <label>
+            Tópico Selecionado
+            <input type="text" id="selected_topic" placeholder="Cole ou clique em um tópico sugerido" required />
+          </label>
+          <label>
+            Línguas
+            <div class="checkboxes">
+              <label><input type="checkbox" name="langs" value="en" checked /> en</label>
+              <label><input type="checkbox" name="langs" value="es" /> es</label>
+            </div>
+          </label>
+        </div>
+        <button type="submit">Gerar</button>
+        <span id="run-status" class="status"></span>
+      </form>
+      <pre id="run-output" class="output"></pre>
+    </section>
+
+    <section id="query-section" class="card">
+      <h2>Consultar Qdrant</h2>
+      <form id="query-form">
+        <div class="grid">
+          <label>
+            Texto de consulta
+            <input type="text" id="query_text" placeholder="IA generativa" required />
+          </label>
+        </div>
+        <button type="submit">Consultar</button>
+        <span id="query-status" class="status"></span>
+      </form>
+      <pre id="query-output" class="output"></pre>
+    </section>
+  </main>
+
+  <footer>
+    <small>© TTS-SST Tester</small>
+  </footer>
+
+  <script defer src="app.js"></script>
+</body>
+</html>

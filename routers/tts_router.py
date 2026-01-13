@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
 from services.tts_service import TTSService
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 tts_service = TTSService()
@@ -40,6 +41,17 @@ class SuggestTopicsRequest(BaseModel):
 
 @router.post("/suggest-topics")
 async def suggest_topics(request: SuggestTopicsRequest):
+    @router.options("/suggest-topics")
+    async def options_suggest_topics():
+        return JSONResponse(content={})
+
+    @router.options("/run-tts")
+    async def options_run_tts():
+        return JSONResponse(content={})
+
+    @router.options("/query-qdrant")
+    async def options_query_qdrant():
+        return JSONResponse(content={})
     try:
         topics = tts_service.suggest_topics(request.model, request.specialist, request.lang, request.subject)
         return {"status": "success", "topics": topics}
