@@ -26,3 +26,21 @@
 - Corrigido problema de diálogos muito curtos: aumentado `max_tokens` de 1000 para 2500 na geração e para 2000 na correção. Adicionada instrução explícita para gerar pelo menos 12-16 trocas de diálogo (24-32 linhas) em inglês e espanhol. Adicionada proteção na correção para preservar comprimento original.
 - Criado arquivo `api_tests.http` com requests HTTP para testar rotas, incluindo cenários válidos, erros e validações. Inclui comentários sobre fluxo lógico esperado (sugestão → geração → consulta).
  - Adicionada página web em `web/` (index.html, styles.css, app.js) para testar as rotas com UI simples e performática (AbortController, throttle, minimal DOM updates). Habilitado CORS em `main.py` para permitir acesso via navegador.
+ - Servir diretório `outputs/` em `/outputs` pelo FastAPI para permitir tocar os áudios via navegador (mesmo quando o HTML está em 127.0.0.1:5500).
+ - `audio_generation.py`: entrevistas em EN/ES agora salvam também um transcript `.json` com as falas e retornam os caminhos gerados.
+ - `scripts/run_tts.py`: imprime um resumo JSON na última linha com arquivos gerados e caminhos dos transcripts para consumo pela API/front.
+ - Rota nova `GET /api/v1/latest-tts`: retorna o último FLAC em `outputs/` e, se disponível, seu transcript.
+ - UI (`web/index.html`, `web/app.js`, `web/styles.css`): adicionados player de áudio e exibição da conversa; após `run-tts` a página carrega automaticamente o último áudio e exibe as falas.
+- **Integração de Howler.js para reprodução de arquivos FLAC no navegador**:
+  - Adicionada biblioteca Howler.js via CDN em `web/index.html` para suportar nativamente arquivos .flac no navegador.
+  - Substituído elemento `<audio>` HTML5 por controles customizados (Play, Pause, Stop) usando Howler.js.
+  - Implementado gerenciamento de estado do player com callbacks para onload, onplay, onpause, onstop, onend e onerror.
+  - Atualizado `web/app.js` para criar instância Howl ao receber URL de áudio da API, com limpeza automática de instâncias anteriores.
+  - Adicionados estilos CSS em `web/styles.css` para controles de áudio customizados com status visual.
+  - Melhorada exibição de transcrição e feedback visual durante carregamento/reprodução do áudio.
+  - **Debug e correções**:
+    - Adicionados logs detalhados no console para rastreamento de resposta da API e processamento de áudio.
+    - Corrigido estado inicial dos botões (todos desabilitados até áudio carregar).
+    - Implementada exibição imediata do player com mensagem de carregamento.
+    - Melhorada extração do nome do arquivo da resposta da API (suporte a caminhos com/sem diretórios).
+    - Criado arquivo de teste `web/test_player.html` para debug isolado do player FLAC.

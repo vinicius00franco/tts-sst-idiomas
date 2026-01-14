@@ -282,7 +282,9 @@ def generate_language_audios(texts: dict, out_dir: str = "."):
 
 
 def generate_interview_english(model_type: str = "fast", specialist: Optional[str] = None, selected_topic: Optional[str] = None):
-    """Gera uma entrevista em inglês usando duas vozes, concatena em memória e salva apenas o arquivo final."""
+    """Gera entrevista em inglês, salva FLAC e transcript JSON.
+    Retorna (final_output_flac: str | None, transcript_path: str | None, transcript: list[tuple[str,str]] | None).
+    """
     # Definir as vozes para a entrevista
     sarah_model = "models/en_US-lessac-medium.onnx"
     sarah_config = sarah_model + ".parquet"
@@ -297,7 +299,7 @@ def generate_interview_english(model_type: str = "fast", specialist: Optional[st
         and os.path.exists(leo_config)
     ):
         print("Modelos para entrevista em inglês não encontrados.")
-        return
+        return None, None, None
 
     # Load configs
     sarah_cfg = convert_numpy(pd.read_parquet(sarah_config).iloc[0].to_dict())
@@ -320,7 +322,7 @@ def generate_interview_english(model_type: str = "fast", specialist: Optional[st
     if specialist:
         builder.set_specialist(specialist)
     generator = builder.build()
-    structured_texts = generator.generate_english_interview_texts(selected_topic)  # [(speaker, text), ...]
+    structured_texts, conversation_uuid = generator.generate_english_interview_texts(selected_topic)  # [(speaker, text), ...], uuid
 
     # Construir conversation respeitando o speaker (ordem lógica)
     conversation = []
@@ -358,7 +360,7 @@ def generate_interview_english(model_type: str = "fast", specialist: Optional[st
 
     if not all_audio:
         print("Nenhum áudio gerado para a entrevista em inglês.")
-        return
+        return None, None, structured_texts
 
     # Adicionar silêncio entre os áudios e no final
     all_audio_with_silence = []
@@ -387,13 +389,19 @@ def generate_interview_english(model_type: str = "fast", specialist: Optional[st
     print(f"Entrevista em inglês salva em {final_output}")
     print(f"Segmentos: Sarah={female_count}, Leo={male_count}, SR mismatch={'sim' if sr_mismatch else 'não'}")
 
+    # Transcript não é mais salvo em arquivo, apenas no Qdrant
+
     # Clean up temp files
     os.unlink(sarah_temp_path)
     os.unlink(leo_temp_path)
 
+    return final_output, None, structured_texts, conversation_uuid
+
 
 def generate_interview_spanish(model_type: str = "fast", specialist: Optional[str] = None, selected_topic: Optional[str] = None):
-    """Gera uma entrevista em espanhol (via LLM) usando duas vozes, concatena em memória e salva apenas o arquivo final."""
+    """Gera entrevista em espanhol, salva FLAC e transcript JSON.
+    Retorna (final_output_flac: str | None, transcript_path: str | None, transcript: list[tuple[str,str]] | None).
+    """
     # Definir as vozes para a entrevista
     sarah_model = "models/es_AR-daniela-high.onnx"
     sarah_config = sarah_model + ".parquet"
@@ -408,7 +416,7 @@ def generate_interview_spanish(model_type: str = "fast", specialist: Optional[st
         and os.path.exists(leo_config)
     ):
         print("Modelos para entrevista em espanhol não encontrados.")
-        return
+        return None, None, None
 
     # Load configs
     sarah_cfg = convert_numpy(pd.read_parquet(sarah_config).iloc[0].to_dict())
@@ -431,7 +439,7 @@ def generate_interview_spanish(model_type: str = "fast", specialist: Optional[st
     if specialist:
         builder.set_specialist(specialist)
     generator = builder.build()
-    structured_texts = generator.generate_spanish_interview_texts(selected_topic)
+    structured_texts, conversation_uuid = generator.generate_spanish_interview_texts(selected_topic)
 
     conversation = []
     for speaker, text in structured_texts:
@@ -468,7 +476,7 @@ def generate_interview_spanish(model_type: str = "fast", specialist: Optional[st
 
     if not all_audio:
         print("Nenhum áudio gerado para a entrevista em espanhol.")
-        return
+        return None, None, structured_texts
 
     # Adicionar silêncio de 2 segundos entre os áudios e no final
     all_audio_with_silence = []
@@ -497,6 +505,8 @@ def generate_interview_spanish(model_type: str = "fast", specialist: Optional[st
     print(f"Entrevista em espanhol salva em {final_output}")
     print(f"Segmentos: Sarah={female_count}, Leo={male_count}, SR mismatch={'sim' if sr_mismatch else 'não'}")
 
-    # Clean up temp files
+    # Transcript não é mais salvo em arquivo, apenas no Qdrant
     os.unlink(sarah_temp_path)
     os.unlink(leo_temp_path)
+
+    return final_output, None, structured_texts, conversation_uuid

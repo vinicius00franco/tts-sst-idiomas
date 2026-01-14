@@ -1,4 +1,5 @@
 import argparse
+import json
 from audio_generation import run_tests_pt_en, generate_interview_english, generate_interview_spanish
 from interview_generator import InterviewGeneratorBuilder
 
@@ -31,7 +32,15 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     # Geração conforme línguas selecionadas
+    summary = {"audios": []}
     if "en" in args.langs:
-        generate_interview_english(args.model, args.specialist, selected_topic)
+        out_en, tr_en, _, conversation_uuid = generate_interview_english(args.model, args.specialist, selected_topic)
+        if out_en:
+            summary["audios"].append({"lang": "en", "file": out_en, "conversation_uuid": conversation_uuid})
     if "es" in args.langs:
-        generate_interview_spanish(args.model, args.specialist, selected_topic)
+        out_es, tr_es, _, conversation_uuid = generate_interview_spanish(args.model, args.specialist, selected_topic)
+        if out_es:
+            summary["audios"].append({"lang": "es", "file": out_es, "conversation_uuid": conversation_uuid})
+
+    # Emitir um resumo JSON na última linha do stdout
+    print(json.dumps(summary, ensure_ascii=False))

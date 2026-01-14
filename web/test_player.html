@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste Player FLAC</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #1a1a1a; color: #fff; }
+    button { padding: 10px 20px; margin: 5px; font-size: 16px; cursor: pointer; }
+    #status { margin: 20px 0; padding: 10px; background: #333; border-radius: 5px; }
+    .success { color: #4CAF50; }
+    .error { color: #f44336; }
+  </style>
+</head>
+<body>
+  <h1>🎵 Teste de Player FLAC com Howler.js</h1>
+  
+  <div>
+    <input type="text" id="audioFile" value="interview_english_v17.flac" style="width: 300px; padding: 8px;">
+    <button onclick="loadAudio()">Carregar Áudio</button>
+  </div>
+  
+  <div style="margin: 20px 0;">
+    <button onclick="play()" id="playBtn" disabled>▶️ Play</button>
+    <button onclick="pause()" id="pauseBtn" disabled>⏸️ Pause</button>
+    <button onclick="stop()" id="stopBtn" disabled>⏹️ Stop</button>
+  </div>
+  
+  <div id="status">
+    <strong>Status:</strong> <span id="statusText">Aguardando...</span>
+  </div>
+  
+  <div id="logs" style="background: #222; padding: 10px; border-radius: 5px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px;"></div>
+
+  <script>
+    let howl = null;
+    
+    function log(message, type = 'info') {
+      const logs = document.getElementById('logs');
+      const time = new Date().toLocaleTimeString();
+      const color = type === 'error' ? '#f44336' : type === 'success' ? '#4CAF50' : '#2196F3';
+      logs.innerHTML += `<div style="color: ${color};">[${time}] ${message}</div>`;
+      logs.scrollTop = logs.scrollHeight;
+      console.log(message);
+    }
+    
+    function setStatus(text, type = 'info') {
+      const statusEl = document.getElementById('statusText');
+      statusEl.textContent = text;
+      statusEl.className = type;
+    }
+    
+    function loadAudio() {
+      const fileName = document.getElementById('audioFile').value;
+      const audioUrl = `http://localhost:8000/outputs/${fileName}`;
+      
+      log(`Carregando: ${audioUrl}`);
+      setStatus('Carregando...', 'info');
+      
+      if (howl) {
+        howl.unload();
+        howl = null;
+        log('Instância anterior descarregada');
+      }
+      
+      // Testar se arquivo existe
+      fetch(audioUrl, { method: 'HEAD' })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          log(`✓ Arquivo encontrado (${response.headers.get('content-length')} bytes)`, 'success');
+          log(`Content-Type: ${response.headers.get('content-type')}`);
+          
+          // Criar Howler
+          howl = new Howl({
+            src: [audioUrl],
+            format: ['flac'],
+            html5: true,
+            onload: () => {
+              log('✓ Áudio carregado com sucesso!', 'success');
+              setStatus('Pronto para reproduzir', 'success');
+              document.getElementById('playBtn').disabled = false;
+            },
+            onloaderror: (id, error) => {
+              log(`✗ Erro ao carregar: ${error}`, 'error');
+              setStatus('Erro ao carregar', 'error');
+            },
+            onplay: () => {
+              log('▶️ Reproduzindo...');
+              setStatus('Reproduzindo', 'success');
+              document.getElementById('playBtn').disabled = true;
+              document.getElementById('pauseBtn').disabled = false;
+              document.getElementById('stopBtn').disabled = false;
+            },
+            onpause: () => {
+              log('⏸️ Pausado');
+              setStatus('Pausado', 'info');
+              document.getElementById('playBtn').disabled = false;
+              document.getElementById('pauseBtn').disabled = true;
+            },
+            onstop: () => {
+              log('⏹️ Parado');
+              setStatus('Parado', 'info');
+              document.getElementById('playBtn').disabled = false;
+              document.getElementById('pauseBtn').disabled = true;
+              document.getElementById('stopBtn').disabled = true;
+            },
+            onend: () => {
+              log('✓ Reprodução finalizada');
+              setStatus('Finalizado', 'info');
+              document.getElementById('playBtn').disabled = false;
+              document.getElementById('pauseBtn').disabled = true;
+              document.getElementById('stopBtn').disabled = true;
+            },
+          });
+          
+          log('Instância Howl criada');
+        })
+        .catch(error => {
+          log(`✗ Erro ao verificar arquivo: ${error.message}`, 'error');
+          setStatus(`Erro: ${error.message}`, 'error');
+        });
+    }
+    
+    function play() {
+      if (howl) {
+        howl.play();
+      }
+    }
+    
+    function pause() {
+      if (howl) {
+        howl.pause();
+      }
+    }
+    
+    function stop() {
+      if (howl) {
+        howl.stop();
+      }
+    }
+    
+    log('Página de teste carregada');
+    log('Digite o nome do arquivo FLAC e clique em "Carregar Áudio"');
+  </script>
+</body>
+</html>

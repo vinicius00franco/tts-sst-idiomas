@@ -154,7 +154,11 @@ class InterviewGenerator:
         joined = ' '.join([t for _, t in structured])
         print(f"Parsed texts (linhas): {len(structured)}, tokens aproximados: {len(joined.split())}")
         print(f"Tokens removidos: {len(raw_text.split()) - len(joined.split())}")
-        return structured
+        
+        # Salvar a conversa final estruturada no Qdrant
+        conversation_uuid = self._save_to_qdrant("conversations", '\n'.join([f"{spk}: {txt}" for spk, txt in structured]))
+        
+        return structured, conversation_uuid
 
     def _parse_dialogue_structured(self, text: str) -> list[tuple[str, str]]:
         """Retorna lista de tuplas (speaker, text), garantindo alternância lógica se ausente."""
@@ -243,7 +247,11 @@ class InterviewGenerator:
         joined = ' '.join([t for _, t in structured])
         print(f"Parsed texts (linhas): {len(structured)}, tokens aproximados: {len(joined.split())}")
         print(f"Tokens removidos: {len(raw_text.split()) - len(joined.split())}")
-        return structured
+        
+        # Salvar a conversa final estruturada no Qdrant
+        conversation_uuid = self._save_to_qdrant("conversations", '\n'.join([f"{spk}: {txt}" for spk, txt in structured]))
+        
+        return structured, conversation_uuid
 
     def _ensure_qdrant(self):
         """Inicializa Qdrant e o modelo de embeddings apenas quando necessário."""
@@ -252,8 +260,8 @@ class InterviewGenerator:
         if self.embedder is None:
             self.embedder = SentenceTransformer('all-MiniLM-L6-v2')
 
-    def _save_to_qdrant(self, collection_name: str, text: str):
-        """Salva texto no Qdrant com embedding."""
+    def _save_to_qdrant(self, collection_name: str, text: str) -> str:
+        """Salva texto no Qdrant com embedding e retorna o UUID."""
         from qdrant_client.http.models import VectorParams, Distance, PointStruct
         
         self._ensure_qdrant()
@@ -270,13 +278,18 @@ class InterviewGenerator:
         # Gerar embedding
         embedding = self.embedder.encode(text).tolist()
         
+        # Gerar UUID
+        point_id = str(uuid4())
+        
         # Salvar ponto com ID único
         point = PointStruct(
-            id=str(uuid4()),
+            id=point_id,
             vector=embedding,
             payload={"text": text}
         )
         self.qdrant.upsert(collection_name=collection_name, points=[point])
+        
+        return point_id
 
     def _close_qdrant(self):
         """Fecha o cliente Qdrant de forma segura para evitar erros no shutdown do Python."""

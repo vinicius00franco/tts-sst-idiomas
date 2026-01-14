@@ -20,6 +20,9 @@ app.include_router(tts_router, prefix="/api/v1", tags=["TTS"])
 # Servir UI estática em /web
 app.mount("/web", StaticFiles(directory="web"), name="web")
 
+# Servir saídas (áudios/transcrições) em /outputs
+app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
+
 # Catch-all OPTIONS for API to satisfy preflight even when Origin handling varies
 @app.options("/api/v1/{path:path}")
 async def options_any(path: str):

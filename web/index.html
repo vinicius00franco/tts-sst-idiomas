@@ -6,6 +6,7 @@
   <title>TTS-SST API Tester</title>
   <link rel="preconnect" href="http://localhost:8000" />
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js" integrity="sha512-xi/RZRIF/S0hJ+yJJYuZ5yk6/8pCiRlEXZzoguSMl+vk2i3m6UjUO/WcZ11blRL/O+rnj94JRGwt/CHbc9+6EA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
   <header>
@@ -70,6 +71,15 @@
         <span id="run-status" class="status"></span>
       </form>
       <pre id="run-output" class="output"></pre>
+      <div id="player" class="player" hidden>
+        <div class="audio-controls">
+          <button id="play-btn" type="button" disabled>▶️ Play</button>
+          <button id="pause-btn" type="button" disabled>⏸️ Pause</button>
+          <button id="stop-btn" type="button" disabled>⏹️ Stop</button>
+          <span id="audio-status">Carregando...</span>
+        </div>
+        <div id="transcript" class="transcript"></div>
+      </div>
     </section>
 
     <section id="query-section" class="card">

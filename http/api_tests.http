@@ -106,6 +106,15 @@ Content-Type: application/json
 }
 
 ### ============================================
+### 2.1. LATEST-TTS ENDPOINT
+### ============================================
+### Purpose: Get the most recently generated audio and transcript.
+### Expected: 200 OK with { status, audio: { url }, transcript: [...] }
+
+GET http://localhost:8000/api/v1/latest-tts
+Accept: application/json
+
+### ============================================
 ### 3. QUERY-QDRANT ENDPOINT
 ### ============================================
 ### Purpose: Query Qdrant for generated/corrected dialogues.

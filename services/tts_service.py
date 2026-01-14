@@ -26,6 +26,13 @@ class TTSService:
             raise Exception(f"Erro ao executar query_qdrant: {result.stderr}")
         return result.stdout
 
+    def get_conversation(self, conversation_uuid: str) -> str:
+        cmd = [sys.executable, "scripts/get_conversation.py", conversation_uuid]
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd=".")
+        if result.returncode != 0:
+            raise Exception(f"Erro ao executar get_conversation: {result.stderr}")
+        return result.stdout
+
     def suggest_topics(self, model: str, specialist: Optional[str], lang: str, subject: str) -> list[str]:
         # Importa diretamente para evitar criar novo script
         import sys

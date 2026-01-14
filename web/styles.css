@@ -28,3 +28,9 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 .output { background: #0b0f14; padding: 10px; border-radius: 8px; border: 1px solid #2a3341; max-height: 300px; overflow: auto; }
 .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .checkboxes { display: flex; gap: 12px; align-items: center; }
+
+.player { margin-top: 12px; }
+.audio-controls { display: flex; gap: 8px; align-items: center; margin: 8px 0 12px; }
+.audio-controls button { padding: 8px 12px; font-size: 14px; }
+#audio-status { margin-left: 8px; color: var(--muted); font-size: 14px; }
+.transcript { background: #0b0f14; padding: 10px; border-radius: 8px; border: 1px solid #2a3341; max-height: 360px; overflow: auto; white-space: pre-wrap; line-height: 1.4; }
